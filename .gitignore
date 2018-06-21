@@ -4,3 +4,9 @@
 
 # Working folder of ant build script
 /build/
+.idea/
+**/*.iml
+.gradle/
+acrolinx-entrypoint.sh
+/gradleBuild/
+/maven/poms/**/pom.xml
