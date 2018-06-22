@@ -6,3 +6,7 @@
 /build/
 .idea/
 **/*.iml
+.gradle/
+acrolinx-entrypoint.sh
+/gradleBuild/
+/maven/poms/**/pom.xml

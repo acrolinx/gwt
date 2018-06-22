@@ -1,0 +1,174 @@
+/** 
+ * Buildscript added by Acrolinx 2018.
+ */
+
+
+plugins {
+    id 'base'
+    id 'org.ajoberstar.grgit' version '2.2.1'
+    id 'com.bmuschko.docker-remote-api' version '3.3.5'
+}
+
+
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.ajoberstar.grgit.Grgit
+import com.bmuschko.gradle.docker.tasks.image.Dockerfile
+import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+import com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer
+import com.bmuschko.gradle.docker.tasks.container.DockerStartContainer
+import com.bmuschko.gradle.docker.tasks.container.DockerStopContainer
+import com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer
+import com.bmuschko.gradle.docker.tasks.container.DockerLogsContainer
+
+//import java.nio.file.Files
+//import java.nio.file.Paths
+
+static boolean canIgnoreOnStopOrRemove(def exception) {
+    return !(exception.getClass().getSimpleName().equals('NotModifiedException') ||
+            exception.message?.contains('No such container'))
+}
+
+def ignoreNotThere = { exception ->
+    if (canIgnoreOnStopOrRemove(exception))
+        throw exception
+}
+Logger log = LoggerFactory.getLogger('build.gradle')
+
+String buildUser = System.properties['user.name']
+String buildUserUid = ["id", "-u", buildUser].execute().text.trim()
+String buildEnvironmentImage = 'acrolinx_gwt_2.7.x:latest'
+String buildEnvironmentContainer = 'acrolinx_gwt_2.7.x'
+String buildUserHomeDir = "/home/${buildUser}"
+String buildEnvironmentWorkingDir = "${buildUserHomeDir}/gwtbuild"
+String entryPointScript = 'acrolinx-entrypoint.sh'
+
+def gradleBuildDirName = 'gradleBuild'
+buildDir = gradleBuildDirName
+
+task cloneGwtTools {
+    group 'Acrolinx'
+    description "Clones the Acrolinx GWT Tools repository from '${gwtToolsRepository}' to '${buildDir}/tools' checking out revision '${gwtToolsCommit}'."
+    doLast {
+        if (!file("${buildDir}/tools").exists()){
+            log.info("Cloning '${gwtToolsRepository}' to '${buildDir}/tools' using revision: '${gwtToolsCommit}'...")
+            Grgit.clone(dir: "${buildDir}/tools", uri: gwtToolsRepository).checkout {
+                    branch = "v${gwtToolsCommit}"
+                    createBranch = true
+                    orphan = false
+                    startPoint = gwtToolsCommit
+            }
+        } else {
+            log.info("Repo '${gwtToolsRepository}' was already cloned to '${buildDir}/tools'.")
+        }
+    }
+}
+
+
+task createEntryPoint()  {
+    group = 'Acrolinx'
+    description = "Creates the entry point script '${entryPointScript}' to be executed in the '${buildEnvironmentContainer}' Docker container. That script runs GWT's Ant and Maven deployment scripts. "
+    doLast {
+        log.info("Creating entry point script ...")
+        def entryPointFile = new File("$projectDir/${entryPointScript}")
+        entryPointFile.text = """#!/bin/sh
+echo Running Ant build...
+ant clean dist -Dgwt.tools=${buildEnvironmentWorkingDir}/${gradleBuildDirName}/tools -Dgwt.version=${version}
+echo Running Maven deployment...
+maven/push-gwt.sh
+        """
+        entryPointFile.setExecutable(true, false)
+    }
+}
+
+
+task createBuildEnvironmentDockerfile(type: Dockerfile) {
+    group = 'Acrolinx'
+    description = "Creates the Dockerfile for the '${buildEnvironmentImage}' image which is providing an appropriate environment for the GWT Ant and Maven build scripts."
+    from 'openjdk:8'
+    destFile = file("${buildDir}/docker/Dockerfile")
+    instruction {'RUN apt-get update'}
+    instruction {'RUN apt-get install zip -y'}
+    instruction {'RUN apt-get install ant -y'}
+    instruction {'RUN apt-get install maven -y'}
+    instruction "RUN useradd -u ${buildUserUid} ${buildUser}"
+    instruction {"RUN mkdir -p ${buildUserHomeDir}"}
+    instruction {"RUN mkdir -p ${buildEnvironmentWorkingDir}"}
+    instruction {"RUN mkdir -p ${buildEnvironmentWorkingDir}/build"}
+    instruction {"RUN mkdir -p ${buildUserHomeDir}/.m2/repository"}
+    instruction "RUN chown -R ${buildUser} ${buildUserHomeDir}"
+    instruction "RUN chown -R ${buildUser} ${buildUserHomeDir}/.m2/repository"
+    workingDir buildEnvironmentWorkingDir
+    environmentVariable TZ: 'America/Los_Angeles'
+    environmentVariable GWT_MAVEN_REPO_ID: "${deployRepositoryId}"
+    environmentVariable GWT_MAVEN_REPO_URL: "${deployRepositoryBaseUrl}/${version?.endsWith("SNAPSHOT") ? "libs-snapshot-local" : "libs-release-local"}"
+    user buildUser
+    entryPoint "${buildEnvironmentWorkingDir}/${entryPointScript}"
+    doFirst{
+        log.info("Creating Dockerfile at '${buildDir}/docker/Dockerfile'...")
+        log.info("GWT_MAVEN_REPO_ID: ${deployRepositoryId}")
+        log.info("GWT_MAVEN_REPO_URL base: ${deployRepositoryBaseUrl}")
+    }
+}
+
+task createBuildEnvironmentImage(type: DockerBuildImage, dependsOn: [createBuildEnvironmentDockerfile]) {
+    group = 'Acrolinx'
+    description = "Creates the '${buildEnvironmentImage}' image for a container providing an appropriate environment for the GWT Ant and Maven build scripts."
+    inputDir = createBuildEnvironmentDockerfile.destFile.parentFile
+    tags = [buildEnvironmentImage]
+    doFirst{
+        log.info("Creating Docker image '${buildEnvironmentImage}'...")
+    }
+}
+
+task removeBuildEnvironmentContainer(type: DockerRemoveContainer){
+    group = 'Acrolinx'
+    description = "Removes the '${buildEnvironmentContainer}' container."
+    targetContainerId {buildEnvironmentContainer}
+    onError ignoreNotThere
+    doFirst{
+        log.info("Removing '${buildEnvironmentContainer}' container...")
+    }
+}
+
+task createBuildEnvironmentContainer(type: DockerCreateContainer, dependsOn: [cloneGwtTools, createBuildEnvironmentImage, removeBuildEnvironmentContainer]){
+    group = 'Acrolinx'
+    description = "Creates the '${buildEnvironmentContainer}' container from the '${buildEnvironmentImage}' image."
+    imageId = buildEnvironmentImage
+    containerName = buildEnvironmentContainer
+    attachStderr = true
+    attachStdout = true
+    volumes = ["${projectDir}":buildEnvironmentWorkingDir, "${System.env.HOME}/.m2/settings.xml":"${buildUserHomeDir}/.m2/settings.xml" ]
+    binds = ["${projectDir}":buildEnvironmentWorkingDir,  "${System.env.HOME}/.m2/settings.xml":"${buildUserHomeDir}/.m2/settings.xml"]
+    network='host'
+    user="${buildUser}:${buildUser}"
+    doFirst{
+        log.info("Creating Docker container '${buildEnvironmentContainer}' from '${buildEnvironmentImage}'...")
+    }
+}
+
+task runAntBuildInContainer(type: DockerStartContainer, dependsOn: [createBuildEnvironmentContainer, createEntryPoint]){
+    group = 'Acrolinx'
+    description = "Starts the '${buildEnvironmentContainer}' container."
+    targetContainerId {buildEnvironmentContainer}
+    doFirst{
+        log.info("Running Ant build in '${buildEnvironmentContainer}' container...")
+    }
+    onError { exception ->
+        log.error("Error during Ant build in container: " + exception?.getMessage())
+    }
+}
+
+task watchAntBuildInContainer(type: DockerLogsContainer, dependsOn: runAntBuildInContainer) {
+    group = 'Acrolinx'
+    description = "Watches the '${buildEnvironmentContainer}' container until it completes the GWT build and terminates."
+    targetContainerId { buildEnvironmentContainer }
+    follow = true
+    tailAll = true
+    onNext { message ->
+        log.info(message.toString())
+    }
+}
+
+
+build.dependsOn watchAntBuildInContainer

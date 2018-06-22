@@ -1,3 +1,41 @@
+## Acrolinx GWT Fork
+
+Forked from the original [GWT repository](https://github.com/acrolinx/gwt) by Acrolinx in 2018 to apply bug fixes from GWT 2.8.x to 2.7.0. 
+
+### Building the GWT SDK (Acrolinx Flavor): 
+
+See section "Building the GWT SDK" below for details as to how to run the original GWT build. 
+(The original build may be equally convenient depending on the build environment prerequisites.)
+
+For our own convenience, we added a Gradle build script that puts the 'tools' project in the right place and runs the GWT Ant build and the GWT Maven deployment scripts in a Docker container. 
+Basically to avoid having to install and keep Ant on the build slaves.
+To use a fixed version of the 'tools' project.
+And to have just one build/deployment step.
+
+
+Prerequisites: 
+ * Linux
+ * Docker >= 17.05
+ * Java 8 or higher
+ * Local `~/.m2/settings.xml` file
+
+Usage: 
+
+   `$ ./gradlew clean build --info 
+            -PdeployRepositoryBaseUrl=<your repo base URL> 
+            -PdeployRepositoryId=<repo ID in mvn/settings.xml>`
+
+
+E.g.:
+
+   `$ ./gradlew clean build --info 
+            -PdeployRepositoryBaseUrl=https://company.com/artifactory 
+            -PdeployRepositoryId=artifactoryrepo`
+
+The parameters correspond to the env variables `GWT_MAVEN_REPO_URL` and `GWT_MAVEN_REPO_ID` described in the maven/README.md file with the slight difference that the `libs-snapshot-local`/`libs-release-local` path segments are determined automatically.
+The container process mounts and modifies the project directory and also reads the local `~/.m2/settings.xml` file. That file must contain the credentials for the corporate repository as detailed in the maven/README.md.
+
+
 ## GWT
 
   GWT is the official open source project for GWT releases 2.5 and onwards.
