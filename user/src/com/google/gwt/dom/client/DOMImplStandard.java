@@ -1,4 +1,12 @@
 /*
+ * Modified by Acrolinx 2018:
+ * Cherry-picked bdb66fc97b2adc419ed65b4710cc6cb1acdec0d4
+ * from
+ * https://github.com/acrolinx/gwt
+ * which is a fork of
+ * https://github.com/acrolinx/gwt.
+ *
+ *
  * Copyright 2007 Google Inc.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
