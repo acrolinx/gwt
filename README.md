@@ -1,6 +1,6 @@
 ## Acrolinx GWT Fork
 
-Forked from the original [GWT repository](https://github.com/acrolinx/gwt) by Acrolinx in 2018 to apply bug fixes from GWT 2.8.x to 2.7.0. 
+Forked from the original [GWT repository](https://github.com/gwtproject/gwt) by Acrolinx in 2018 to apply bug fixes from GWT 2.8.x to 2.7.0. 
 
 ### Building the GWT SDK (Acrolinx Flavor): 
 
