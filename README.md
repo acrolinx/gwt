@@ -1,6 +1,6 @@
 ## Acrolinx GWT Fork
 
-Forked from the original [GWT repository](https://github.com/acrolinx/gwt) by Acrolinx to apply bug fixes to GWT 2.7.0. 
+Forked from the original [GWT repository](https://github.com/gwtproject/gwt) by Acrolinx to apply bug fixes to GWT 2.7.0. 
 
 These changes are maintained in the `acrolinx/2.7` branch.
 
