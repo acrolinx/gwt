@@ -7,9 +7,9 @@ Forked from the original [GWT repository](https://github.com/gwtproject/gwt) by 
 See section "Building the GWT SDK" below for details as to how to run the original GWT build. 
 (The original build may be equally convenient depending on the build environment prerequisites.)
 
-For our own convenience, we added a Gradle build script that puts the 'tools' project in the right place and runs the GWT Ant build and the GWT Maven deployment scripts in a Docker container. 
+For our own convenience, we added a Gradle build script that puts the `tools` project in the right place and runs the GWT Ant build and the GWT Maven deployment scripts in a Docker container. 
 Basically to avoid having to install and keep Ant on the build slaves.
-To use a fixed version of the 'tools' project.
+To use a fixed version of the `tools` project.
 And to have just one build/deployment step.
 
 
@@ -33,7 +33,8 @@ E.g.:
             -PdeployRepositoryId=artifactoryrepo`
 
 The parameters correspond to the env variables `GWT_MAVEN_REPO_URL` and `GWT_MAVEN_REPO_ID` described in the maven/README.md file with the slight difference that the `libs-snapshot-local`/`libs-release-local` path segments are determined automatically.
-The container process mounts and modifies the project directory and also reads the local `~/.m2/settings.xml` file. That file must contain the credentials for the corporate repository as detailed in the maven/README.md.
+The container process mounts and modifies the project directory and also reads the local `~/.m2/settings.xml` file. That file must contain the credentials for the corporate repository as detailed in the `maven/README.md`.
+
 
 
 ## GWT
