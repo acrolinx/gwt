@@ -37,7 +37,7 @@ The container process mounts and modifies the project directory and also reads t
 
 
 
-## GWT
+## GWT
 
   GWT is the official open source project for GWT releases 2.5 and onwards.
 
